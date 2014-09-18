@@ -1,16 +1,15 @@
 """Bosonic quantum operators."""
 
-from warnings import warn
-
 from sympy.core.compatibility import u
-from sympy import Add, Mul, Pow, Integer, exp, sqrt, conjugate, DiracDelta
-from sympy.physics.quantum import Operator, Commutator, AntiCommutator, Dagger
+from sympy import Mul, Integer, exp, sqrt, conjugate, DiracDelta, Symbol
+from sympy.physics.quantum import Operator, Commutator
 from sympy.physics.quantum import HilbertSpace, FockSpace, Ket, Bra, IdentityOperator
 from sympy.functions.special.tensor_functions import KroneckerDelta
 
 
 __all__ = [
     'BosonOp',
+    'MultiBosonOp',
     'BosonFockKet',
     'BosonFockBra',
     'BosonCoherentKet',
@@ -26,9 +25,6 @@ class BosonOp(Operator):
 
     name : str
         A string that labels the bosonic mode.
-
-    mode_label: Symbol
-        A symbol that denotes the mode label.
 
     annihilation : bool
         A bool that indicates if the bosonic operator is an annihilation (True,
@@ -49,12 +45,8 @@ class BosonOp(Operator):
         return self.args[0]
 
     @property
-    def mode(self):
-        return self.args[1]
-
-    @property
     def is_annihilation(self):
-        return bool(self.args[2])
+        return bool(self.args[1])
 
     @classmethod
     def default_args(self):
@@ -62,35 +54,22 @@ class BosonOp(Operator):
 
     def __new__(cls, *args, **hints):
         if not len(args) in [1, 2]:
-            raise ValueError('1 or 2 parameters expected, got %s' % args)
-
-        if isinstance(args[0], (list, tuple)):
-            name, mode = args[0]
-        else:
-            name, mode = args[0], None
+            raise ValueError('1 or 2 parameters expected, got %s' % str(args))
 
         if len(args) == 1:
-            args = (name, mode, Integer(1))
+            args = (args[0], Integer(1))
 
         if len(args) == 2:
-            args = (name, mode, Integer(args[1]))
+            args = (args[0], Integer(args[1]))
 
         return Operator.__new__(cls, *args)
 
     def _eval_commutator_BosonOp(self, other, **hints):
         if self.name == other.name:
-            if self.mode is None or other.mode is None:
-                # [a^\dagger, a] = -1
-                if not self.is_annihilation and other.is_annihilation:
-                    return Integer(-1)
-            else:
-                if not self.is_annihilation and other.is_annihilation:
-                    return - DiracDelta(self.mode - other.mode)
-                elif not self.is_annihilation and not other.is_annihilation:
-                    return Integer(0)
-                elif self.is_annihilation and other.is_annihilation:
-                    return Integer(0)
-                
+            # [a^\dagger, a] = -1
+            if not self.is_annihilation and other.is_annihilation:
+                return Integer(-1)
+
         elif 'independent' in hints and hints['independent']:
             # [a, b] = 0
             return Integer(0)
@@ -108,11 +87,8 @@ class BosonOp(Operator):
         return None
 
     def _eval_adjoint(self):
-        if self.mode is None:
-            return BosonOp(str(self.name), not self.is_annihilation)
-        else:
-            return BosonOp((str(self.name), self.mode), not self.is_annihilation)
-            
+        return BosonOp(str(self.name), not self.is_annihilation)
+
     def __mul__(self, other):
 
         if other == IdentityOperator(2):
@@ -130,15 +106,9 @@ class BosonOp(Operator):
 
     def _print_contents_latex(self, printer, *args):
         if self.is_annihilation:
-            if self.mode is None:
-                return r'{%s}' % str(self.name)
-            else:
-                return r'{%s(%s)}' % (str(self.name), str(self.mode))
+            return r'{%s}' % str(self.name)
         else:
-            if self.mode is None:
-                return r'{{%s}^\dag}' % str(self.name)
-            else:
-                return r'{{%s(%s)}^\dag}' % (str(self.name), str(self.mode))
+            return r'{{%s}^\dag}' % str(self.name)
 
     def _print_contents(self, printer, *args):
         if self.is_annihilation:
@@ -147,6 +117,123 @@ class BosonOp(Operator):
             return r'Dagger(%s)' % str(self.name)
 
     def _print_contents_pretty(self, printer, *args):
+        from sympy.printing.pretty.stringpict import prettyForm
+        pform = printer._print(self.args[0], *args)
+        if self.is_annihilation:
+            return pform
+        else:
+            return pform**prettyForm(u('\u2020'))
+
+
+class MultiBosonOp(BosonOp):
+    """A bosonic operator that satisfies [a(w1), Dagger(a(w2))] ==
+    delta(w1 - w2).
+
+    Parameters
+    ==========
+
+    name : str
+        A string that labels the bosonic mode.
+
+    mode_label: Symbol
+        A symbol that denotes the mode label.
+
+    annihilation : bool
+        A bool that indicates if the bosonic operator is an annihilation (True,
+        default value) or creation operator (False)
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import Dagger, Commutator
+    >>> from sympy.physics.quantum.boson import MultiBosonOp
+    >>> w1, w2 = symbols("w_1, w_2")
+    >>> a1 = MultiBosonOp("a", w1)
+    >>> a2 = MultiBosonOp("a", w2)
+    >>> Commutator(a1, Dagger(a2)).doit()
+    DiracDelta(w1 - w2)
+    """
+
+    @property
+    def name(self):
+        return self.args[0]
+
+    @property
+    def mode(self):
+        return self.args[1]
+
+    @property
+    def is_annihilation(self):
+        return bool(self.args[2])
+
+    @classmethod
+    def default_args(self):
+        return ("a", Symbol("\omega"), True)
+
+    def __new__(cls, *args, **hints):
+        if not len(args) in [2, 3]:
+            raise ValueError('2 or 3 parameters expected, got %s' % args)
+
+        if len(args) == 2:
+            args = (args[0], args[1], Integer(1))
+
+        if len(args) == 3:
+            args = (args[0], args[1], Integer(args[2]))
+
+        return Operator.__new__(cls, *args)
+
+    def _eval_commutator_BosonOp(self, other, **hints):
+        if 'independent' in hints and hints['independent']:
+            # [a, b] = 0
+            return Integer(0)
+
+    def _eval_commutator_MultiBosonOp(self, other, **hints):
+        if self.name == other.name:
+            if not self.is_annihilation and other.is_annihilation:
+                return - DiracDelta(self.mode - other.mode)
+            elif not self.is_annihilation and not other.is_annihilation:
+                return Integer(0)
+            elif self.is_annihilation and other.is_annihilation:
+                return Integer(0)
+                
+        elif 'independent' in hints and hints['independent']:
+            # [a, b] = 0
+            return Integer(0)
+
+        return None
+
+    def _eval_commutator_FermionOp(self, other, **hints):
+        return Integer(0)
+
+    def _eval_anticommutator_BosonOp(self, other, **hints):
+        return 2 * self * other
+
+    def _eval_anticommutator_MultiBosonOp(self, other, **hints):
+        if 'independent' in hints and hints['independent']:
+            # {a, b} = 2 * a * b, because [a, b] = 0
+            return 2 * self * other
+        else:
+            return 2 * self * other - Commutator(self, other)
+
+        return None
+
+    def _eval_adjoint(self):
+        return MultiBosonOp(self.name, self.mode, not self.is_annihilation)
+
+    def _print_contents_latex(self, printer, *args):
+        if self.is_annihilation:
+            return r'{%s(%s)}' % (str(self.name), str(self.mode))
+        else:
+            return r'{{%s(%s)}^\dag}' % (str(self.name), str(self.mode))
+
+    def _print_contents(self, printer, *args):
+        if self.is_annihilation:
+            return r'%s(%s)' % (str(self.name), str(self.mode))
+        else:
+            return r'Dagger(%s(%s))' % (str(self.name), str(self.mode))
+
+    def _print_contents_pretty(self, printer, *args):
+        # TODO
         from sympy.printing.pretty.stringpict import prettyForm
         pform = printer._print(self.args[0], *args)
         if self.is_annihilation:
