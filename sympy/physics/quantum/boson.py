@@ -153,7 +153,10 @@ class MultiBosonOp(BosonOp):
     >>> Commutator(a1, Dagger(a2)).doit()
     DiracDelta(w1 - w2)
     """
-
+    @property
+    def free_symbols(self):
+        return self.args[1].free_symbols
+        
     @property
     def name(self):
         return self.args[0]
@@ -222,9 +225,9 @@ class MultiBosonOp(BosonOp):
 
     def _print_contents_latex(self, printer, *args):
         if self.is_annihilation:
-            return r'{%s(%s)}' % (str(self.name), str(self.mode))
+            return r'{%s_{%s}}' % (str(self.name), str(self.mode))
         else:
-            return r'{{%s(%s)}^\dag}' % (str(self.name), str(self.mode))
+            return r'{{%s_{%s}}^\dag}' % (str(self.name), str(self.mode))
 
     def _print_contents(self, printer, *args):
         if self.is_annihilation:
