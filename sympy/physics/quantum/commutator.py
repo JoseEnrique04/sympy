@@ -172,12 +172,18 @@ class Commutator(Expr):
             return Add(first, second)
         elif isinstance(A, Integral):
             # [∫adx, B] ->  ∫[a, B]dx
-            integrand, limits = A.function, list(A.limits)
-            return Integral(Commutator(integrand, B), limits)
+            func, lims = A.function, A.limits
+            new_args = [Commutator(func, B)]
+            for lim in lims:
+                new_args.append(lim)
+            return Integral(*new_args)
         elif isinstance(B, Integral):
             # [A, ∫bdx] ->  ∫[A, b]dx
-            integrand, limits = B.function, list(B.limits)
-            return Integral(Commutator(A, integrand), limits)
+            func, lims = B.function, B.limits
+            new_args = [Commutator(A, func)]
+            for lim in lims:
+                new_args.append(lim)
+            return Integral(*new_args)
         # No changes, so return self
         return self
 
