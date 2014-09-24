@@ -48,6 +48,10 @@ class BosonOp(Operator):
     def is_annihilation(self):
         return bool(self.args[1])
 
+    @property
+    def free_symbols(self):
+        return set([])
+
     @classmethod
     def default_args(self):
         return ("a", True)
