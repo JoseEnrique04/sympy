@@ -284,6 +284,46 @@ class BosonFockKet(Ket):
         else:
             return sqrt(self.n + 1) * BosonFockKet(self.n + 1)
 
+class MultiBosonFockKet(Ket):
+    """Fock state ket for a multimode-bosonic mode.
+
+    Parameters
+    ==========
+
+    n : Number
+        The Fock state number.
+
+    """
+
+    def __new__(cls, n, mode):
+        return Ket.__new__(cls, n, mode)
+
+    @property
+    def n(self):
+        return self.label[0]
+    
+    def mode(self):
+        return self.label[1]
+    
+    @classmethod
+    def dual_class(self):
+        return MultiBosonFockBra
+
+    @classmethod
+    def _eval_hilbert_space(cls, label):
+        return FockSpace()
+
+    def _eval_innerproduct_MultiBosonFockBra(self, bra, **hints):
+        return KroneckerDelta(self.n, bra.n) * DiracDelta(self.mode, bra.mode)
+
+    def _apply_operator_MultiBosonOp(self, op, **options):
+        if op.mode != self.mode:
+            return None
+            
+        if op.is_annihilation:
+            return sqrt(self.n) * MultiBosonFockKet(self.n - 1, op.mode)
+        else:
+            return sqrt(self.n + 1) * MultiBosonFockKet(self.n + 1, op.mode)
 
 class BosonFockBra(Bra):
     """Fock state bra for a bosonic mode.
