@@ -13,7 +13,9 @@ __all__ = [
     'BosonFockKet',
     'BosonFockBra',
     'BosonCoherentKet',
-    'BosonCoherentBra'
+    'BosonCoherentBra',
+    'MultiBosonFockKet',
+    'MultiBosonFockBra'
 ]
 
 
@@ -296,6 +298,7 @@ class BosonFockKet(Ket):
 
     n : Number
         The Fock state number.
+        
 
     """
 
@@ -323,47 +326,6 @@ class BosonFockKet(Ket):
         else:
             return sqrt(self.n + 1) * BosonFockKet(self.n + 1)
 
-class MultiBosonFockKet(Ket):
-    """Fock state ket for a multimode-bosonic mode. 
-
-    Parameters
-    ==========
-
-    n : Number
-        The Fock state number.
-
-    """
-
-    def __new__(cls, n, mode):
-        return Ket.__new__(cls, n, mode)
-
-    @property
-    def n(self):
-        return self.label[0]
-    
-    def mode(self):
-        return self.label[1]
-    
-    @classmethod
-    def dual_class(self):
-        return MultiBosonFockBra
-
-    @classmethod
-    def _eval_hilbert_space(cls, label):
-        return FockSpace()
-
-    def _eval_innerproduct_MultiBosonFockBra(self, bra, **hints):
-        return KroneckerDelta(self.n, bra.n) * DiracDelta(self.mode, bra.mode)
-
-    def _apply_operator_MultiBosonOp(self, op, **options):
-        if op.mode != self.mode:
-            return None
-            
-        if op.is_annihilation:
-            return sqrt(self.n) * MultiBosonFockKet(self.n - 1, op.mode)
-        else:
-            return sqrt(self.n + 1) * MultiBosonFockKet(self.n + 1, op.mode)
-
 class BosonFockBra(Bra):
     """Fock state bra for a bosonic mode.
 
@@ -390,6 +352,95 @@ class BosonFockBra(Bra):
     def _eval_hilbert_space(cls, label):
         return FockSpace()
 
+class MultiBosonFockKet(Ket):
+    """Fock state ket for a multimode-bosonic mode(KroneckerDelta normalization). 
+
+    Parameters
+    ==========
+
+    n : Number
+        The Fock state number.
+
+    mode : Symbol
+        A symbol that denotes the mode label.  
+
+    """
+
+    def __new__(cls, n, mode):
+        return Ket.__new__(cls, n, mode)
+
+    @property
+    def n(self):
+        return self.label[0]
+
+    @property    
+    def mode(self):
+        return self.label[1]
+        
+    @classmethod
+    def default_args(self):
+        return (Integer(0), Symbol("k"))
+        
+    @classmethod
+    def dual_class(self):
+        return MultiBosonFockBra
+
+    @classmethod
+    def _eval_hilbert_space(cls, label):
+        return FockSpace()
+
+    def _eval_innerproduct_MultiBosonFockBra(self, bra, **hints):
+        return KroneckerDelta(self.n, bra.n) * KroneckerDelta(self.mode, bra.mode)
+
+    def _apply_operator_MultiBosonOp(self, op, **options):
+        if op.normalization_type == 'Kronecker':
+            if op.mode != self.mode:
+                return None
+            if op.is_annihilation:
+                return sqrt(self.n) * MultiBosonFockKet(self.n - 1, op.mode)
+            else:
+                return sqrt(self.n + 1) * MultiBosonFockKet(self.n + 1, op.mode)
+        else:
+            return None
+
+    def _latex(self, printer, *args):
+        return r'{\left| {%s} \right\rangle}{_{%s}}' % (str(self.n), str(self.mode))
+        
+class MultiBosonFockBra(Bra):
+    """Fock state bra for a multimode-bosonic mode(KroneckerDelta normalization). 
+
+    Parameters
+    ==========
+
+    n : Number
+        The Fock state number.
+
+    mode : Symbol
+        A symbol that denotes the mode label.  
+
+    """
+
+    def __new__(cls, n, mode):
+        return Ket.__new__(cls, n, mode)
+
+    @property
+    def n(self):
+        return self.label[0]
+
+    @property    
+    def mode(self):
+        return self.label[1]
+    
+    @classmethod
+    def dual_class(self):
+        return MultiBosonFockKet
+
+    @classmethod
+    def _eval_hilbert_space(cls, label):
+        return FockSpace()
+    
+    def _latex(self, printer, *args):
+        return r'{_{%s}}{\left\langle {%s} \right|}' % (str(self.mode), str(self.n))
 
 class BosonCoherentKet(Ket):
     """Coherent state ket for a bosonic mode.
@@ -457,3 +508,12 @@ class BosonCoherentBra(Bra):
             return self.alpha * self
         else:
             return None
+            
+            
+class VacuumKet(Ket):
+    """
+    Ket representing the Vacuum State.
+    returns zero if an annihilation operator is applied.
+    
+    """
+
