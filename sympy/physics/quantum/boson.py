@@ -130,8 +130,16 @@ class BosonOp(Operator):
 
 
 class MultiBosonOp(BosonOp):
-    """A bosonic operator that satisfies [a(w1), Dagger(a(w2))] ==
-    delta(w1 - w2).
+    """Bosonic operators that satisfiy the commutation relations:
+    for discrete label for modes:
+        [a(k1), Dagger(a(k2))] == KroneckerDelta(k1, k2). 
+    
+    for continuous label for modes:
+        [a(k1), Dagger(a(k2))] == DiracDelta(k1 - k2).
+        
+    and in both cases:
+        [a(k1), a(k2)] == [Dagger(a(k1)), Dagger(a(k2))] == 0.
+
 
     Parameters
     ==========
@@ -139,23 +147,42 @@ class MultiBosonOp(BosonOp):
     name : str
         A string that labels the bosonic mode.
 
-    mode_label: Symbol
+    mode: Symbol
         A symbol that denotes the mode label.
+
+    normalization : ['Kronecker', 'Dirac']
+        'Kronecker' for KroneckerDelta function,
+        'Dirac' for DiracDelta function. 
+        should be specified in any case.
 
     annihilation : bool
         A bool that indicates if the bosonic operator is an annihilation (True,
         default value) or creation operator (False)
-
+    
+        
     Examples
     ========
-
+    
     >>> from sympy.physics.quantum import Dagger, Commutator
     >>> from sympy.physics.quantum.boson import MultiBosonOp
-    >>> w1, w2 = symbols("w_1, w_2")
-    >>> a1 = MultiBosonOp("a", w1)
-    >>> a2 = MultiBosonOp("a", w2)
+    >>> w1, w2 = symbols("w1, w2")
+    >>> a1 = MultiBosonOp("a", w1, 'Kronecker')
+    >>> a2 = MultiBosonOp("a", w2, 'Kronecker')
     >>> Commutator(a1, Dagger(a2)).doit()
+    KroneckerDelta(w1, w2)
+    >>> Commutator(a1, a2).doit()
+    0
+    >>> Commutator(Dagger(a1), Dagger(a2)).doit()
+    0
+    >>> b1 = MultiBosonOp("b", w1, 'Dirac')
+    >>> b2 = MultiBosonOp("b", w2, 'Dirac')
+    >>> Commutator(b1, Dagger(b2)).doit()
     DiracDelta(w1 - w2)
+    >>> Commutator(b1, b2).doit()
+    0
+    >>> Commutator(Dagger(b1), Dagger(b2)).doit()
+    0
+    
     """
     @property
     def free_symbols(self):
@@ -168,24 +195,32 @@ class MultiBosonOp(BosonOp):
     @property
     def mode(self):
         return self.args[1]
+    
+    @property
+    def normalization_type(self):
+        return str(self.args[2])
 
     @property
     def is_annihilation(self):
-        return bool(self.args[2])
+        return bool(self.args[3])
 
     @classmethod
     def default_args(self):
-        return ("a", Symbol("\omega"), True)
+        return ("a", Symbol("\omega"), "Kronecker", True)
 
     def __new__(cls, *args, **hints):
-        if not len(args) in [2, 3]:
-            raise ValueError('2 or 3 parameters expected, got %s' % args)
-
-        if len(args) == 2:
-            args = (args[0], args[1], Integer(1))
-
+        if not len(args) in [3, 4]:
+            raise ValueError('3 or 4 parameters expected, got %s' % args)
+        
+        if str(args[2]) not in ['Kronecker', 'Dirac']:
+            print("Kronecker or Dirac: %s" % args[2])
+            raise ValueError('The third argument should be "Kronecker" or "Dirac", got %s' % args)
+            
         if len(args) == 3:
-            args = (args[0], args[1], Integer(args[2]))
+            args = (args[0], args[1], str(args[2]), Integer(1))
+
+        if len(args) == 4:
+            args = (args[0], args[1], str(args[2]), Integer(args[3]))
 
         return Operator.__new__(cls, *args)
 
@@ -195,9 +230,13 @@ class MultiBosonOp(BosonOp):
             return Integer(0)
 
     def _eval_commutator_MultiBosonOp(self, other, **hints):
-        if self.name == other.name:
+        if (self.name == other.name and 
+            self.normalization_type == other.normalization_type):
             if not self.is_annihilation and other.is_annihilation:
-                return - DiracDelta(self.mode - other.mode)
+                if self.normalization_type == 'Kronecker':
+                    return - KroneckerDelta(self.mode, other.mode)
+                elif self.normalization_type == 'Dirac':
+                    return - DiracDelta(self.mode - other.mode)
             elif not self.is_annihilation and not other.is_annihilation:
                 return Integer(0)
             elif self.is_annihilation and other.is_annihilation:
@@ -225,7 +264,7 @@ class MultiBosonOp(BosonOp):
         return None
 
     def _eval_adjoint(self):
-        return MultiBosonOp(self.name, self.mode, not self.is_annihilation)
+        return MultiBosonOp(self.name, self.mode, self.normalization_type, not self.is_annihilation)
 
     def _print_contents_latex(self, printer, *args):
         if self.is_annihilation:
@@ -285,7 +324,7 @@ class BosonFockKet(Ket):
             return sqrt(self.n + 1) * BosonFockKet(self.n + 1)
 
 class MultiBosonFockKet(Ket):
-    """Fock state ket for a multimode-bosonic mode.
+    """Fock state ket for a multimode-bosonic mode. 
 
     Parameters
     ==========
