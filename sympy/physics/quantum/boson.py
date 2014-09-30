@@ -529,7 +529,7 @@ class BosonVacuumKet(Ket):
     def _eval_hilbert_space(cls, label):
         return FockSpace()
 
-    def _eval_innerproduct_VacuumBra(self, bra, **hints):
+    def _eval_innerproduct_BosonVacuumBra(self, bra, **hints):
         return Integer(1)
     
     def _apply_operator_BosonOp(self, op, **options):
