@@ -3,6 +3,7 @@
 from __future__ import print_function, division
 
 from sympy import Expr, conjugate
+from sympy.printing.latex import latex
 from sympy.printing.pretty.stringpict import prettyForm
 from sympy.physics.quantum.dagger import Dagger
 from sympy.physics.quantum.state import KetBase, BraBase
@@ -119,9 +120,14 @@ class InnerProduct(Expr):
         return pform
 
     def _latex(self, printer, *args):
-        bra_label = self.bra._print_contents_latex(printer, *args)
-        ket = printer._print(self.ket, *args)
-        return r'\left\langle %s \right. %s' % (bra_label, ket)
+        bra_str = latex(self.bra)
+        rvert = r'\right|'
+        ket_str = latex(self.ket)
+        
+        bra_str_without_vert = (bra_str[:bra_str.find(rvert)] + r'\right.'
+                             + bra_str[bra_str.find(rvert) + len(rvert):])
+        
+        return r'%s %s' % (bra_str_without_vert, ket_str)
 
     def doit(self, **hints):
         try:

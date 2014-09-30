@@ -4,6 +4,7 @@ from __future__ import print_function, division
 
 from sympy import S, Expr, Mul, Add
 from sympy.core.compatibility import u
+from sympy.integrals.integrals import Integral
 from sympy.printing.pretty.stringpict import prettyForm
 
 from sympy.physics.quantum.dagger import Dagger
@@ -169,7 +170,20 @@ class Commutator(Expr):
             first = Mul(comm1, c)
             second = Mul(b, comm2)
             return Add(first, second)
-
+        elif isinstance(A, Integral):
+            # [∫adx, B] ->  ∫[a, B]dx
+            func, lims = A.function, A.limits
+            new_args = [Commutator(func, B)]
+            for lim in lims:
+                new_args.append(lim)
+            return Integral(*new_args)
+        elif isinstance(B, Integral):
+            # [A, ∫bdx] ->  ∫[A, b]dx
+            func, lims = B.function, B.limits
+            new_args = [Commutator(A, func)]
+            for lim in lims:
+                new_args.append(lim)
+            return Integral(*new_args)
         # No changes, so return self
         return self
 
