@@ -2,11 +2,8 @@
 
 import warnings
 
-from sympy.core.compatibility import u
-from sympy import Add, Mul, Pow, Integer, exp, sqrt, conjugate
-from sympy.physics.quantum import Operator, Commutator, AntiCommutator, Dagger
-from sympy.physics.quantum import HilbertSpace, FockSpace, Ket, Bra
-from sympy.functions.special.tensor_functions import KroneckerDelta
+from sympy import Add, Mul, Pow, Integer
+from sympy.physics.quantum import Operator, Commutator, AntiCommutator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operator import OperatorFunction
@@ -255,6 +252,10 @@ def normal_ordered_form(expr, independent=False, recursive_limit=10,
                                            recursive_limit=recursive_limit,
                                            _recursive_depth=_recursive_depth,
                                            independent=independent)
+
+    elif isinstance(expr, Expectation):
+        return Expectation(normal_ordered_form(expr.expression), 
+                           expr.is_normal_order)
     else:
         return expr
 
@@ -392,3 +393,6 @@ def normal_order(expr, recursive_limit=10, _recursive_depth=0):
                                     _recursive_depth=_recursive_depth)
     else:
         return expr
+
+
+from sympy.physics.quantum.expectation import Expectation
