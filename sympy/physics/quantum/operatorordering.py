@@ -52,7 +52,11 @@ def _normal_ordered_form_factor(product, independent=False, recursive_limit=10,
     n = 0
     while n < len(factors) - 1:
 
-        if isinstance(factors[n], BosonOp):
+        if isinstance(factors[n], Expectation):
+            factor = Expectation(normal_ordered_form(factors[n].args[0]), factors[n].is_normal_order)
+            new_factors.append(factor)
+            
+        elif isinstance(factors[n], BosonOp):
             # boson
             if not isinstance(factors[n + 1], BosonOp):
                 new_factors.append(factors[n])
@@ -160,6 +164,9 @@ def _normal_ordered_form_terms(expr, independent=False, recursive_limit=10,
                 term, recursive_limit=recursive_limit,
                 _recursive_depth=_recursive_depth, independent=independent)
             new_terms.append(new_term)
+        elif isinstance(term, Expectation):
+            term = Expectation(normal_ordered_form(term.args[0]), term.is_normal_order)
+            new_terms.append(term)
         else:
             new_terms.append(term)
 
