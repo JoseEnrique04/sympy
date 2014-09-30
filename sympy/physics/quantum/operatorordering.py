@@ -9,6 +9,7 @@ from sympy.physics.quantum import HilbertSpace, FockSpace, Ket, Bra
 from sympy.functions.special.tensor_functions import KroneckerDelta
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
+from sympy.physics.quantum.operator import OperatorFunction
 
 __all__ = [
     'normal_order',
@@ -52,7 +53,43 @@ def _normal_ordered_form_factor(product, independent=False, recursive_limit=10,
     n = 0
     while n < len(factors) - 1:
 
-        if isinstance(factors[n], BosonOp):
+        if (isinstance(factors[n], OperatorFunction) and 
+                isinstance(factors[n].operator, BosonOp)):
+            # boson
+            if (not isinstance(factors[n + 1], OperatorFunction) or
+                    (isinstance(factors[n + 1], OperatorFunction) and 
+                not isinstance(factors[n + 1].operator, BosonOp))):
+                new_factors.append(factors[n])
+
+            elif factors[n].operator.is_annihilation == factors[n + 1].operator.is_annihilation:
+                if (independent and
+                        str(factors[n].operator.name) > str(factors[n + 1].operator.name)):
+                    new_factors.append(factors[n + 1])
+                    new_factors.append(factors[n])
+                    n += 1
+                else:
+                    new_factors.append(factors[n])
+
+            elif not factors[n].operator.is_annihilation:
+                new_factors.append(factors[n])
+
+            else:
+                if factors[n + 1].operator.is_annihilation:
+                    new_factors.append(factors[n])
+                else:
+                    if factors[n].operator.args[0] != factors[n + 1].operator.args[0]:
+                        if independent:
+                            c = 0
+                        else:
+                            c = Commutator(factors[n], factors[n + 1])
+                        new_factors.append(factors[n + 1] * factors[n] + c)
+                    else:
+                        c = Commutator(factors[n], factors[n + 1])
+                        new_factors.append(
+                            factors[n + 1] * factors[n] + c.doit())
+                    n += 1
+
+        elif isinstance(factors[n], BosonOp):
             # boson
             if not isinstance(factors[n + 1], BosonOp):
                 new_factors.append(factors[n])
@@ -118,9 +155,14 @@ def _normal_ordered_form_factor(product, independent=False, recursive_limit=10,
                             -factors[n + 1] * factors[n] + c.doit())
                     n += 1
 
-        elif isinstance(factors[n], Operator):
+        elif isinstance(factors[n], (Operator, OperatorFunction)):
 
             if isinstance(factors[n + 1], (BosonOp, FermionOp)):
+                new_factors.append(factors[n + 1])
+                new_factors.append(factors[n])
+                n += 1
+            elif (isinstance(factors[n + 1], OperatorFunction) and
+                    isinstance(factors[n + 1].operator, (BosonOp, FermionOp))):
                 new_factors.append(factors[n + 1])
                 new_factors.append(factors[n])
                 n += 1
@@ -223,7 +265,23 @@ def _normal_order_factor(product, recursive_limit=10, _recursive_depth=0):
     new_factors = []
     while n < len(factors) - 1:
 
-        if (isinstance(factors[n], BosonOp) and
+        if (isinstance(factors[n], OperatorFunction) and 
+                isinstance(factors[n].operator, BosonOp) and
+                factors[n].operator.is_annihilation):
+            # boson
+            if not isinstance(factors[n + 1].operator, BosonOp):
+                new_factors.append(factors[n])
+            else:
+                if factors[n + 1].is_annihilation:
+                    new_factors.append(factors[n])
+                else:
+                    if factors[n].operator.args[0] != factors[n + 1].operator.args[0]:
+                        new_factors.append(factors[n + 1] * factors[n])
+                    else:
+                        new_factors.append(factors[n + 1] * factors[n])
+                    n += 1
+        
+        elif (isinstance(factors[n], BosonOp) and
                 factors[n].is_annihilation):
             # boson
             if not isinstance(factors[n + 1], BosonOp):
