@@ -121,10 +121,10 @@ class InnerProduct(Expr):
 
     def _latex(self, printer, *args):
         bra_str = latex(self.bra)
-        rvert = r'|'
+        rvert = r'\right|'
         ket_str = latex(self.ket)
         
-        bra_str_without_vert = (bra_str[:bra_str.find(rvert)] + r'.'
+        bra_str_without_vert = (bra_str[:bra_str.find(rvert)] + r'\right.'
                              + bra_str[bra_str.find(rvert) + len(rvert):])
         
         return r'%s %s' % (bra_str_without_vert, ket_str)
