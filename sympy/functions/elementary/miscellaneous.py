@@ -339,7 +339,7 @@ class MinMaxBase(Expr, LatticeOp):
             elif arg == cls.identity:
                 continue
             elif arg.func == cls:
-                for x in arg.iter_basic_args():
+                for x in arg.args:
                     yield x
             else:
                 yield arg
@@ -419,6 +419,10 @@ class MinMaxBase(Expr, LatticeOp):
                 df = Function.fdiff(self, i)
             l.append(df * da)
         return Add(*l)
+
+    def evalf(self, prec=None, **options):
+        return self.func(*[a.evalf(prec, options) for a in self.args])
+    n = evalf
 
     @property
     def is_real(self):

@@ -5,6 +5,7 @@ from .expr import Expr
 from .evalf import EvalfMixin
 from .symbol import Symbol
 from .sympify import _sympify
+from .evaluate import global_evaluate
 
 from sympy.logic.boolalg import Boolean
 
@@ -92,21 +93,16 @@ class Relational(Boolean, Expr, EvalfMixin):
     def _eval_evalf(self, prec):
         return self.func(*[s._evalf(prec) for s in self.args])
 
-    def doit(self, **hints):
-        lhs = self.lhs
-        rhs = self.rhs
-        if hints.get('deep', True):
-            lhs = lhs.doit(**hints)
-            rhs = rhs.doit(**hints)
-        return self._eval_relation_doit(lhs, rhs)
-
-    @classmethod
-    def _eval_relation_doit(cls, lhs, rhs):
-        return cls(lhs, rhs)
-
     def _eval_simplify(self, ratio, measure):
-        return self.__class__(self.lhs.simplify(ratio=ratio),
-                              self.rhs.simplify(ratio=ratio))
+        r = self.__class__(self.lhs.simplify(ratio=ratio),
+                           self.rhs.simplify(ratio=ratio))
+        if r not in (S.true, S.false):
+            # try harder to reduce to boolean
+            # NOTE: may want to move _eval_sides() code here
+            rr = self._eval_sides(self.lhs, self.rhs)
+            if rr is not None:
+                return rr
+        return r
 
     def __nonzero__(self):
         raise TypeError("symbolic boolean expression has no truth value.")
@@ -184,31 +180,35 @@ class Equality(Relational):
 
     is_Equality = True
 
-    def __new__(cls, lhs, rhs=0, **assumptions):
+    def __new__(cls, lhs, rhs=0, **options):
         lhs = _sympify(lhs)
         rhs = _sympify(rhs)
-        # If one expression has an _eval_Eq, return its results.
-        if hasattr(lhs, '_eval_Eq'):
-            r = lhs._eval_Eq(rhs)
+
+        evaluate = options.pop('evaluate', global_evaluate[0])
+
+        if evaluate:
+            # If one expression has an _eval_Eq, return its results.
+            if hasattr(lhs, '_eval_Eq'):
+                r = lhs._eval_Eq(rhs)
+                if r is not None:
+                    return r
+            if hasattr(rhs, '_eval_Eq'):
+                r = rhs._eval_Eq(lhs)
+                if r is not None:
+                    return r
+            # If expressions have the same structure, they must be equal.
+            if lhs == rhs:
+                return S.true
+            # If one side is real and the other complex, they must be unequal.
+            elif (lhs.is_real != rhs.is_real and
+                  None not in (lhs.is_real, rhs.is_real)):
+                return S.false
+            # Otherwise, see if the difference can be evaluated.
+            r = cls._eval_sides(lhs, rhs)
             if r is not None:
                 return r
-        if hasattr(rhs, '_eval_Eq'):
-            r = rhs._eval_Eq(lhs)
-            if r is not None:
-                return r
-        # If expressions have the same structure, they must be equal.
-        if lhs == rhs:
-            return S.true
-        # If one side is real and the other complex, they must be unequal.
-        elif (lhs.is_real != rhs.is_real and
-                None not in (lhs.is_real, rhs.is_real)):
-            return S.false
-        # Otherwise, see if the difference can be evaluated.
-        r = cls._eval_sides(lhs, rhs)
-        if r is not None:
-            return r
-        # If not, pass arguments to Relational.
-        return Relational.__new__(cls, lhs, rhs, **assumptions)
+
+        return Relational.__new__(cls, lhs, rhs, **options)
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
@@ -251,13 +251,18 @@ class Unequality(Relational):
 
     __slots__ = []
 
-    def __new__(cls, lhs, rhs, **assumptions):
+    def __new__(cls, lhs, rhs, **options):
         lhs = _sympify(lhs)
         rhs = _sympify(rhs)
-        is_equal = Equality(lhs, rhs)
-        if is_equal == True or is_equal == False:
-            return ~is_equal
-        return Relational.__new__(cls, lhs, rhs, **assumptions)
+
+        evaluate = options.pop('evaluate', global_evaluate[0])
+
+        if evaluate:
+            is_equal = Equality(lhs, rhs)
+            if is_equal == True or is_equal == False:
+                return ~is_equal
+
+        return Relational.__new__(cls, lhs, rhs, **options)
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
@@ -275,19 +280,30 @@ class _Inequality(Relational):
     """
     __slots__ = []
 
-    def __new__(cls, lhs, rhs, **assumptions):
+    def __new__(cls, lhs, rhs, **options):
         lhs = _sympify(lhs)
         rhs = _sympify(rhs)
-        # Try to evaluate the difference between sides.
-        r = cls._eval_sides(lhs, rhs)
-        if r is not None:
-            return r
-        # If that fails, pass arguments to Relational.
-        return Relational.__new__(cls, lhs, rhs, **assumptions)
 
-    @classmethod
-    def _eval_relation_doit(cls, lhs, rhs):
-        return cls._eval_relation(lhs, rhs)
+        evaluate = options.pop('evaluate', global_evaluate[0])
+
+        if evaluate:
+            # First we invoke the appropriate inequality method of `lhs`
+            # (e.g., `lhs.__lt__`).  That method will try to reduce to
+            # boolean or raise an exception.  It may keep calling
+            # superclasses until it reaches `Expr` (e.g., `Expr.__lt__`).
+            # In some cases, `Expr` will just invoke us again (if neither it
+            # nor a subclass was able to reduce to boolean or raise an
+            # exception).  In that case, it must call us with
+            # `evaluate=False` to prevent infinite recursion.
+            r = cls._eval_relation(lhs, rhs)
+            if r is not None:
+                return r
+            # Note: not sure r could be None, perhaps we never take this
+            # path?  In principle, could use this to shortcut out if a
+            # class realizes the inequality cannot be evaluated further.
+
+        # make a "non-evaluated" Expr for the inequality
+        return Relational.__new__(cls, lhs, rhs, **options)
 
 
 class _Greater(_Inequality):
@@ -571,7 +587,8 @@ class GreaterThan(_Greater):
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
-        return _sympify(lhs >= rhs)
+        # We don't use the op symbol here: workaround issue #7951
+        return _sympify(lhs.__ge__(rhs))
 
 Ge = GreaterThan
 
@@ -584,7 +601,8 @@ class LessThan(_Less):
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
-        return _sympify(lhs <= rhs)
+        # We don't use the op symbol here: workaround issue #7951
+        return _sympify(lhs.__le__(rhs))
 
 Le = LessThan
 
@@ -597,7 +615,8 @@ class StrictGreaterThan(_Greater):
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
-        return _sympify(lhs > rhs)
+        # We don't use the op symbol here: workaround issue #7951
+        return _sympify(lhs.__gt__(rhs))
 
 Gt = StrictGreaterThan
 
@@ -610,7 +629,8 @@ class StrictLessThan(_Less):
 
     @classmethod
     def _eval_relation(cls, lhs, rhs):
-        return _sympify(lhs < rhs)
+        # We don't use the op symbol here: workaround issue #7951
+        return _sympify(lhs.__lt__(rhs))
 
 Lt = StrictLessThan
 

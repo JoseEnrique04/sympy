@@ -251,6 +251,11 @@ def test_minpoly_issue_7113():
     2734577732179183863586489182929671773182898498218854181690460140337930774573792597743853652058046464
 
 
+def test_minpoly_issue_7574():
+    ex = -(-1)**Rational(1, 3) + (-1)**Rational(2,3)
+    assert minimal_polynomial(ex, x) == x + 1
+
+
 def test_primitive_element():
     assert primitive_element([sqrt(2)], x) == (x**2 - 2, [1])
     assert primitive_element(
@@ -514,6 +519,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias is None
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is False
 
@@ -526,6 +532,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias == Symbol('y')
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is True
 
@@ -535,6 +542,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias == Symbol('y')
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is True
 
@@ -555,6 +563,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias is None
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is False
 
@@ -567,6 +576,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias is None
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is False
 
@@ -576,6 +586,7 @@ def test_AlgebraicNumber():
     assert a.root == root
     assert a.alias is None
     assert a.minpoly == minpoly
+    assert a.is_number
 
     assert a.is_aliased is False
 
