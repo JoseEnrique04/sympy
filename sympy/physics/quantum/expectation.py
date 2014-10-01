@@ -5,7 +5,6 @@ from __future__ import print_function, division
 from sympy import Expr, Add, Mul, Integer, Symbol, Integral
 from sympy.physics.quantum.dagger import Dagger
 from sympy.physics.quantum.qapply import qapply
-from sympy.physics.quantum.operatorordering import normal_order
 
 
 __all__ = [
@@ -228,6 +227,3 @@ class Covariance(Expr):
             return r"\left\langle %s, %s \right\rangle" % tuple([
                 printer._print(self.args[0], *args),
                 printer._print(self.args[1], *args)])
-
-
-

@@ -7,6 +7,8 @@ from sympy.physics.quantum import Operator, Commutator, AntiCommutator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operator import OperatorFunction
+from sympy.physics.quantum.expectation import Expectation
+
 
 __all__ = [
     'normal_order',
@@ -393,6 +395,3 @@ def normal_order(expr, recursive_limit=10, _recursive_depth=0):
                                     _recursive_depth=_recursive_depth)
     else:
         return expr
-
-
-from sympy.physics.quantum.expectation import Expectation
