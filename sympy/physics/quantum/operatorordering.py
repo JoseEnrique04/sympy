@@ -191,12 +191,16 @@ def _normal_ordered_form_factor(product, independent=False, recursive_limit=10,
                 new_factors.append(factors[n])
 
         else:
-            new_factors.append(factors[n])
+            new_factors.append(normal_ordered_form(factors[n],
+                            recursive_limit=recursive_limit,
+                            _recursive_depth=_recursive_depth + 1))
 
         n += 1
 
     if n == len(factors) - 1:
-        new_factors.append(factors[-1])
+        new_factors.append(normal_ordered_form(factors[-1],
+                            recursive_limit=recursive_limit,
+                            _recursive_depth=_recursive_depth + 1))
 
     if new_factors == factors:
         return product
