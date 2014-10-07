@@ -1,15 +1,20 @@
 """Pauli operators and states"""
 
-from sympy import I, Add, Mul, Pow, Integer, exp, sqrt, conjugate
+from sympy import I, Mul, Integer
 from sympy.physics.quantum import (Operator, Commutator, AntiCommutator,
                                    Dagger, IdentityOperator, Ket, Bra)
-from sympy.physics.quantum import HilbertSpace, ComplexSpace
-from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum import ComplexSpace
 from sympy.matrices import Matrix
 from sympy.functions.special.tensor_functions import KroneckerDelta
 
+__all__ = [
+    'SigmaX', 'SigmaY', 'SigmaZ', 'SigmaMinus', 'SigmaPlus', 'SigmaZKet',
+    'SigmaZBra'
+]
+
+
 class SigmaOpBase(Operator):
-    """Pauli sigma x operator"""
+    """Pauli sigma operator, base class"""
 
     @property
     def name(self):
@@ -17,7 +22,7 @@ class SigmaOpBase(Operator):
 
     @property
     def use_name(self):
-        return self.args[0] != False
+        return self.args[0] is not False
 
     @classmethod
     def default_args(self):
@@ -31,7 +36,28 @@ class SigmaOpBase(Operator):
 
 
 class SigmaX(SigmaOpBase):
-    """Pauli sigma x operator"""
+    """Pauli sigma x operator
+
+    Parameters
+    ==========
+
+    name : str
+        An optional string that labels the operator. Pauli operators with
+        different names commute.
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import represent
+    >>> from sympy.physics.quantum.pauli import SigmaX
+    >>> sx = SigmaX()
+    >>> sx
+    SigmaX()
+    >>> represent(sx)
+    Matrix([
+    [0, 1],
+    [1, 0]])
+    """
 
     def __new__(cls, *args, **hints):
         return SigmaOpBase.__new__(cls, *args, **hints)
@@ -117,7 +143,28 @@ class SigmaX(SigmaOpBase):
 
 
 class SigmaY(SigmaOpBase):
-    """Pauli sigma y operator"""
+    """Pauli sigma y operator
+
+    Parameters
+    ==========
+
+    name : str
+        An optional string that labels the operator. Pauli operators with
+        different names commute.
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import represent
+    >>> from sympy.physics.quantum.pauli import SigmaY
+    >>> sy = SigmaY()
+    >>> sy
+    SigmaY()
+    >>> represent(sy)
+    Matrix([
+    [0, -I],
+    [I,  0]])
+    """
 
     def __new__(cls, *args, **hints):
         return SigmaOpBase.__new__(cls, *args)
@@ -200,7 +247,28 @@ class SigmaY(SigmaOpBase):
 
 
 class SigmaZ(SigmaOpBase):
-    """Pauli sigma z operator"""
+    """Pauli sigma z operator
+
+    Parameters
+    ==========
+
+    name : str
+        An optional string that labels the operator. Pauli operators with
+        different names commute.
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import represent
+    >>> from sympy.physics.quantum.pauli import SigmaZ
+    >>> sz = SigmaZ()
+    >>> sz ** 3
+    SigmaZ()
+    >>> represent(sz)
+    Matrix([
+    [1,  0],
+    [0, -1]])
+    """
 
     def __new__(cls, *args, **hints):
         return SigmaOpBase.__new__(cls, *args)
@@ -258,10 +326,10 @@ class SigmaZ(SigmaOpBase):
             return Integer(1)
 
         if isinstance(other, SigmaMinus) and self.name == other.name:
-            return - SigmaMinus(self.name) # -(SigmaX(self.name) - I * SigmaY(self.name))/2  # 
+            return - SigmaMinus(self.name)
 
         if isinstance(other, SigmaPlus) and self.name == other.name:
-            return SigmaPlus(self.name) # (SigmaX(self.name) + I * SigmaY(self.name))/2  # 
+            return SigmaPlus(self.name)
 
         if isinstance(other, Mul):
             args1 = tuple(arg for arg in other.args if arg.is_commutative)
@@ -283,7 +351,30 @@ class SigmaZ(SigmaOpBase):
 
 
 class SigmaMinus(SigmaOpBase):
-    """Pauli sigma minus operator"""
+    """Pauli sigma minus operator
+
+    Parameters
+    ==========
+
+    name : str
+        An optional string that labels the operator. Pauli operators with
+        different names commute.
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import represent, Dagger
+    >>> from sympy.physics.quantum.pauli import SigmaMinus
+    >>> sm = SigmaMinus()
+    >>> sm
+    SigmaMinus()
+    >>> Dagger(sm)
+    SigmaPlus()
+    >>> represent(sm)
+    Matrix([
+    [0, 0],
+    [1, 0]])
+    """
 
     def __new__(cls, *args, **hints):
         return SigmaOpBase.__new__(cls, *args)
@@ -341,7 +432,8 @@ class SigmaMinus(SigmaOpBase):
             return - I * (Integer(1) - SigmaZ(self.name))/2
 
         if isinstance(other, SigmaZ) and self.name == other.name:
-            return SigmaMinus(self.name) # (SigmaX(self.name) - I * SigmaY(self.name))/2  # 
+            # (SigmaX(self.name) - I * SigmaY(self.name))/2
+            return SigmaMinus(self.name)
 
         if isinstance(other, SigmaMinus) and self.name == other.name:
             return Integer(0)
@@ -378,7 +470,30 @@ class SigmaMinus(SigmaOpBase):
 
 
 class SigmaPlus(SigmaOpBase):
-    """Pauli sigma plus operator"""
+    """Pauli sigma plus operator
+
+    Parameters
+    ==========
+
+    name : str
+        An optional string that labels the operator. Pauli operators with
+        different names commute.
+
+    Examples
+    ========
+
+    >>> from sympy.physics.quantum import represent, Dagger
+    >>> from sympy.physics.quantum.pauli import SigmaPlus
+    >>> sp = SigmaPlus()
+    >>> sp
+    SigmaPlus()
+    >>> Dagger(sp)
+    SigmaMinus()
+    >>> represent(sp)
+    Matrix([
+    [0, 1],
+    [0, 0]])
+    """
 
     def __new__(cls, *args, **hints):
         return SigmaOpBase.__new__(cls, *args)
@@ -445,7 +560,8 @@ class SigmaPlus(SigmaOpBase):
             return I * (Integer(1) + SigmaZ(self.name))/2
 
         if isinstance(other, SigmaZ) and self.name == other.name:
-            return -SigmaPlus(self.name) #-(SigmaX(self.name) + I * SigmaY(self.name))/2  # 
+            #-(SigmaX(self.name) + I * SigmaY(self.name))/2
+            return -SigmaPlus(self.name)
 
         if isinstance(other, SigmaMinus) and self.name == other.name:
             return (Integer(1) + SigmaZ(self.name))/2
