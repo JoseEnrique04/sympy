@@ -160,17 +160,33 @@ def _normal_ordered_form_factor(product, independent=False, recursive_limit=10,
                             -factors[n + 1] * factors[n] + c.doit())
                     n += 1
 
-        elif isinstance(factors[n], (Operator, OperatorFunction)):
+        elif isinstance(factors[n], Operator):
 
-            if isinstance(factors[n + 1], (BosonOp, FermionOp)):
-                new_factors.append(factors[n + 1])
+            if isinstance(factors[n], (BosonOp, FermionOp)):
+                if isinstance(factors[n + 1], (BosonOp, FermionOp)):
+                    new_factors.append(factors[n + 1])
+                    new_factors.append(factors[n])
+                    n += 1
+                elif (isinstance(factors[n + 1], OperatorFunction) and
+                      isinstance(factors[n + 1].operator, (BosonOp, FermionOp))):
+                    new_factors.append(factors[n + 1])
+                    new_factors.append(factors[n])
+                    n += 1
+            else:
                 new_factors.append(factors[n])
-                n += 1
-            elif (isinstance(factors[n + 1], OperatorFunction) and
-                    isinstance(factors[n + 1].operator, (BosonOp, FermionOp))):
-                new_factors.append(factors[n + 1])
-                new_factors.append(factors[n])
-                n += 1
+
+        elif isinstance(factors[n], OperatorFunction):
+
+            if isinstance(factors[n].operator, (BosonOp, FermionOp)):
+                if isinstance(factors[n + 1], (BosonOp, FermionOp)):
+                    new_factors.append(factors[n + 1])
+                    new_factors.append(factors[n])
+                    n += 1
+                elif (isinstance(factors[n + 1], OperatorFunction) and
+                      isinstance(factors[n + 1].operator, (BosonOp, FermionOp))):
+                    new_factors.append(factors[n + 1])
+                    new_factors.append(factors[n])
+                    n += 1
             else:
                 new_factors.append(factors[n])
 

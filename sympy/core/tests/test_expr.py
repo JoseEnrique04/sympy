@@ -6,7 +6,7 @@ from sympy import (Add, Basic, S, Symbol, Wild, Float, Integer, Rational, I,
     Piecewise, Mul, Pow, nsimplify, ratsimp, trigsimp, radsimp, powsimp,
     simplify, together, collect, factorial, apart, combsimp, factor, refine,
     cancel, Tuple, default_sort_key, DiracDelta, gamma, Dummy, Sum, E,
-    exp_polar, Lambda, expand, diff, O)
+    exp_polar, Lambda, expand, diff, O, Heaviside)
 from sympy.core.function import AppliedUndef
 from sympy.physics.secondquant import FockState
 from sympy.physics.units import meter
@@ -501,11 +501,6 @@ def test_args():
     assert (x**y).args[1] == y
 
 
-def test_iter_basic_args():
-    assert list(sin(x*y).iter_basic_args()) == [x*y]
-    assert list((x**y).iter_basic_args()) == [x, y]
-
-
 def test_noncommutative_expand_issue_3757():
     A, B, C = symbols('A,B,C', commutative=False)
     assert A*B - B*A != 0
@@ -658,6 +653,12 @@ def test_replace():
         2*((2*x*y + 1)*(4*x*y + 1))})
     assert x.replace(x, y) == y
     assert (x + 1).replace(1, 2) == x + 2
+
+    # https://groups.google.com/forum/#!topic/sympy/8wCgeC95tz0
+    n1, n2, n3 = symbols('n1:4', commutative=False)
+    f = Function('f')
+    assert (n1*f(n2)).replace(f, lambda x: x) == n1*n2
+    assert (n3*f(n2)).replace(f, lambda x: x) == n3*n2
 
 
 def test_find():
@@ -1384,6 +1385,9 @@ def test_issue_4199():
     a = x - y
     assert a._eval_interval(x, 1, oo)._eval_interval(y, oo, 1) is S.NaN
     raises(ValueError, lambda: x._eval_interval(x, None, None))
+    a = -y*Heaviside(x - y)
+    assert a._eval_interval(x, -oo, oo) == -y
+    assert a._eval_interval(x, oo, -oo) == y
 
 
 def test_primitive():
@@ -1592,6 +1596,10 @@ def test_round():
 
     # issue 6914
     assert (I**(I + 3)).round(3) == Float('-0.208', '')*I
+
+    # issue 7961
+    assert str(S(0.006).round(2)) == '0.01'
+    assert str(S(0.00106).round(4)) == '0.0011'
 
 
 def test_extract_branch_factor():

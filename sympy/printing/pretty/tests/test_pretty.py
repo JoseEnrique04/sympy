@@ -9,7 +9,8 @@ from sympy import (
     catalan, ceiling, conjugate, cos, euler, exp, expint, factorial,
     factorial2, floor, gamma, groebner, hyper, log, lowergamma, meijerg,
     oo, pi, sin, sqrt, subfactorial, symbols, tan, uppergamma, lex, ilex,
-    grlex, elliptic_k, elliptic_f, elliptic_e, elliptic_pi)
+    grlex, elliptic_k, elliptic_f, elliptic_e, elliptic_pi, Range,
+    Complement, Contains)
 
 from sympy.printing.pretty import pretty as xpretty
 from sympy.printing.pretty import pprint
@@ -355,6 +356,36 @@ u("""\
 1\n\
 ─\n\
 x\
+""")
+    assert pretty(expr) == ascii_str
+    assert upretty(expr) == ucode_str
+
+    # not the same as 1/x
+    expr = x**-1.0
+    ascii_str = \
+"""\
+ -1.0\n\
+x    \
+"""
+    ucode_str = \
+("""\
+ -1.0\n\
+x    \
+""")
+    assert pretty(expr) == ascii_str
+    assert upretty(expr) == ucode_str
+
+    # see issue #2860
+    expr = S(2)**-1.0
+    ascii_str = \
+"""\
+ -1.0\n\
+2    \
+"""
+    ucode_str = \
+("""\
+ -1.0\n\
+2    \
 """)
     assert pretty(expr) == ascii_str
     assert upretty(expr) == ucode_str
@@ -2938,13 +2969,13 @@ def test_any_object_in_sequence():
 
 def test_pretty_sets():
     s = FiniteSet
-    assert pretty(s([x*y, x**2])) == \
+    assert pretty(s(*[x*y, x**2])) == \
 """\
   2      \n\
 {x , x*y}\
 """
-    assert pretty(s(range(1, 6))) == "{1, 2, 3, 4, 5}"
-    assert pretty(s(range(1, 13))) == "{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}"
+    assert pretty(s(*range(1, 6))) == "{1, 2, 3, 4, 5}"
+    assert pretty(s(*range(1, 13))) == "{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}"
     for s in (frozenset, set):
         assert pretty(s([x*y, x**2])) == \
 """\
@@ -2954,6 +2985,23 @@ def test_pretty_sets():
         assert pretty(s(range(1, 6))) == "%s([1, 2, 3, 4, 5])" % s.__name__
         assert pretty(s(range(1, 13))) == \
             "%s([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])" % s.__name__
+
+    assert pretty(Range(0, 3, 1)) == '{0, 1, 2}'
+
+    ascii_str = '{0, 1, ..., 29}'
+    ucode_str = u('{0, 1, …, 29}')
+    assert pretty(Range(0, 30, 1)) == ascii_str
+    assert upretty(Range(0, 30, 1)) == ucode_str
+
+    ascii_str = '{0, 2, ..., oo}'
+    ucode_str = u('{0, 2, …, ∞}')
+    assert pretty(Range(0, oo, 2)) == ascii_str
+    assert upretty(Range(0, oo, 2)) == ucode_str
+
+    ascii_str = '{-oo, ..., -3, -2}'
+    ucode_str = u('{-∞, …, -3, -2}')
+    assert pretty(Range(-2, -oo, -1)) == ascii_str
+    assert upretty(Range(-2, -oo, -1)) == ucode_str
 
 
 def test_pretty_limits():
@@ -4328,14 +4376,15 @@ u("""\
 def test_RandomDomain():
     from sympy.stats import Normal, Die, Exponential, pspace, where
     X = Normal('x1', 0, 1)
-    assert upretty(where(X > 0)) == u("Domain: x₁ > 0")
+    assert upretty(where(X > 0)) == u("Domain: 0 < x₁ ∧ x₁ < ∞")
 
     D = Die('d1', 6)
     assert upretty(where(D > 4)) == u('Domain: d₁ = 5 ∨ d₁ = 6')
 
     A = Exponential('a', 1)
     B = Exponential('b', 1)
-    assert upretty(pspace(Tuple(A, B)).domain) == u('Domain: a ≥ 0 ∧ b ≥ 0')
+    assert upretty(pspace(Tuple(A, B)).domain) == \
+        u('Domain: 0 ≤ a ∧ 0 ≤ b ∧ a < ∞ ∧ b < ∞')
 
 
 def test_PrettyPoly():
@@ -4726,3 +4775,13 @@ def test_issue_7179():
 
 def test_issue_7180():
     assert upretty(Equivalent(x, y)) == u('x ≡ y')
+
+
+def test_pretty_Complement():
+    assert pretty(S.Reals - S.Naturals) == '(-oo, oo) \ Naturals()'
+    assert upretty(S.Reals - S.Naturals) == u('ℝ \ ℕ')
+
+
+def test_pretty_Contains():
+    assert pretty(Contains(x, S.Integers)) == 'Contains(x, Integers())'
+    assert upretty(Contains(x, S.Integers)) == u('x ∈ ℤ')
