@@ -8,6 +8,8 @@ from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operator import OperatorFunction
 from sympy.physics.quantum.expectation import Expectation
+from sympy.integrals.integrals import Integral
+from sympy.concrete.summations import Sum
 
 
 __all__ = [
@@ -258,6 +260,19 @@ def normal_ordered_form(expr, independent=False, recursive_limit=10,
     elif isinstance(expr, Expectation):
         return Expectation(normal_ordered_form(expr.expression), 
                            expr.is_normal_order)
+
+    elif isinstance(expr, Integral):
+        nargs = [normal_ordered_form(expr.function)]
+        for lim in expr.limits:
+            nargs.append(lim)
+        return Integral(*nargs)
+
+    elif isinstance(expr, Sum):
+        nargs = [normal_ordered_form(expr.function)]
+        for lim in expr.limits:
+            nargs.append(lim)
+        return Sum(*nargs)
+        
     else:
         return expr
 
